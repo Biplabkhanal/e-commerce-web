@@ -16,6 +16,10 @@ import { Divider, List, ListItem, ListItemText, Popover } from "@mui/material";
 import { useAuth } from "../contexts/AuthContext";
 import { auth } from "../firebase/config";
 import { signOut } from "firebase/auth";
+import khaltiCheckout from "../../khalti/khalticonfig";
+import KhaltiCheckout from "khalti-checkout-web";
+import axios from "axios";
+import khaltiConfig from "../../khalti/khalticonfig";
 
 const Navbar = () => {
   const { user } = useAuth();
@@ -60,6 +64,11 @@ const Navbar = () => {
     } catch (error) {
       console.error("Logout error:", error);
     }
+  };
+
+  const handleKhaltiCheckout = () => {
+    const checkout = new KhaltiCheckout(khaltiConfig); // Using updated test config
+    checkout.show({ amount: cartTotal * 100 }); // Amount in paisa
   };
 
   return (
@@ -133,6 +142,16 @@ const Navbar = () => {
                   <Typography variant="h6" color="primary">
                     ${cartTotal.toFixed(2)}
                   </Typography>
+                </ListItem>
+                <ListItem>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    fullWidth
+                    onClick={handleKhaltiCheckout}
+                  >
+                    Checkout with Khalti
+                  </Button>
                 </ListItem>
               </>
             )}
