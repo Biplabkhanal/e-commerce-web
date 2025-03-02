@@ -16,16 +16,18 @@ import { Divider, List, ListItem, ListItemText, Popover } from "@mui/material";
 import { useAuth } from "../contexts/AuthContext";
 import { auth } from "../firebase/config";
 import { signOut } from "firebase/auth";
-import khaltiCheckout from "../../khalti/khalticonfig";
-import KhaltiCheckout from "khalti-checkout-web";
-import axios from "axios";
-import khaltiConfig from "../../khalti/khalticonfig";
+import {
+  createKhaltiPaymentUrl,
+  generateOrderId,
+} from "../../khalti/khalticonfig";
 
 const Navbar = () => {
   const { user } = useAuth();
   const cartItems = useSelector((state) => state.cart.items);
   const [cartAnchorEl, setCartAnchorEl] = useState(null);
   const [anchorEl, setAnchorEl] = React.useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const cartItemsCount = cartItems.reduce(
     (total, item) => total + item.quantity,
     0
@@ -67,10 +69,49 @@ const Navbar = () => {
   };
 
   const handleKhaltiCheckout = () => {
-    const checkout = new KhaltiCheckout(khaltiConfig); // Using updated test config
-    checkout.show({ amount: cartTotal * 100 }); // Amount in paisa
-  };
+    setIsProcessing(true);
 
+    try {
+      // Generate a unique purchase order ID
+      const purchaseOrderId = generateOrderId();
+
+      // Prepare data for Khalti payment URL
+      const paymentData = {
+        return_url: `${window.location.origin}/payment-success`,
+        website_url: window.location.origin,
+        amount: Math.round(cartTotal * 100), // Convert to paisa and ensure it's an integer
+        purchase_order_id: purchaseOrderId,
+        purchase_order_name: "Ecommerce Purchase",
+        customer_info: {
+          name: user?.name || "Guest Customer",
+          email: user?.email || "",
+          phone: user?.phone || "",
+        },
+        product_details: cartItems.map((item) => ({
+          identity: item.id,
+          name: item.title,
+          total_price: Math.round(item.price * item.quantity * 100), // in paisa
+          quantity: item.quantity,
+          unit_price: Math.round(item.price * 100), // in paisa
+        })),
+      };
+
+      // Create the payment URL
+      const paymentUrl = createKhaltiPaymentUrl(paymentData);
+
+      // Save cart info to localStorage for verification later
+      localStorage.setItem("khaltiOrderId", purchaseOrderId);
+      localStorage.setItem("cartItems", JSON.stringify(cartItems));
+      localStorage.setItem("cartTotal", cartTotal);
+
+      // Redirect to Khalti payment page
+      window.location.href = paymentUrl;
+    } catch (error) {
+      console.error("Failed to initiate payment:", error);
+      alert("Payment initiation failed. Please try again.");
+      setIsProcessing(false);
+    }
+  };
   return (
     <AppBar position="static" sx={{ backgroundColor: "#1976d2" }}>
       <Toolbar>
@@ -149,8 +190,9 @@ const Navbar = () => {
                     color="success"
                     fullWidth
                     onClick={handleKhaltiCheckout}
+                    disabled={isProcessing || cartItems.length === 0}
                   >
-                    Checkout with Khalti
+                    {isProcessing ? "Processing..." : "Checkout with Khalti"}
                   </Button>
                 </ListItem>
               </>

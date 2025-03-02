@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   Container,
@@ -9,6 +10,7 @@ import {
   TextField,
   CircularProgress,
   Skeleton,
+  Alert,
 } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
 import { useEffect, useState } from "react";
@@ -32,8 +34,63 @@ const LoadingSkeleton = () => (
 
 const Home = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { products, loading, error } = useSelector((state) => state.products);
   const [randomProducts, setRandomProducts] = useState([]);
+  const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState(null);
+
+  const validateEmail = (email) => {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  };
+
+  const handleSubscription = async (e) => {
+    e.preventDefault();
+
+    // Reset states
+    setEmailError("");
+
+    // Validate email
+    if (!validateEmail(email)) {
+      setEmailError("Please enter a valid email address");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      console.log(`Confirmation email sent to: ${email}`);
+      console.log(
+        `Email content: Thank you for subscribing to our newsletter!`
+      );
+
+      setSubscriptionStatus({
+        type: "success",
+        message: "Thank you for subscribing to our newsletter!",
+      });
+      setEmail("");
+
+      setTimeout(() => {
+        setSubscriptionStatus(null);
+      }, 5000);
+    } catch (error) {
+      setSubscriptionStatus({
+        type: "error",
+        message: "Failed to subscribe. Please try again.",
+      });
+
+      setTimeout(() => {
+        setSubscriptionStatus(null);
+      }, 5000);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     dispatch(fetchProducts());
@@ -54,7 +111,6 @@ const Home = () => {
   }, [products]);
   return (
     <>
-      {/* Hero Section */}
       <Box
         sx={{
           background: "linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)",
@@ -107,6 +163,7 @@ const Home = () => {
                   <Button
                     variant="contained"
                     size="large"
+                    onClick={() => navigate("/products")}
                     sx={{
                       mt: 2,
                       bgcolor: "white",
@@ -248,7 +305,20 @@ const Home = () => {
             <Typography variant="body1" textAlign="center" paragraph>
               Subscribe to our newsletter for exclusive offers and updates
             </Typography>
+
+            {subscriptionStatus && (
+              <Alert
+                severity={subscriptionStatus.type}
+                sx={{ mb: 2 }}
+                onClose={() => setSubscriptionStatus(null)}
+              >
+                {subscriptionStatus.message}
+              </Alert>
+            )}
+
             <Box
+              component="form"
+              onSubmit={handleSubscription}
               sx={{
                 display: "flex",
                 gap: 2,
@@ -260,9 +330,25 @@ const Home = () => {
                 variant="outlined"
                 placeholder="Enter your email"
                 sx={{ bgcolor: "white" }}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                error={!!emailError}
+                helperText={emailError}
+                disabled={isSubmitting}
+                required
+                type="email"
               />
-              <Button variant="contained" size="large">
-                Subscribe
+              <Button
+                variant="contained"
+                size="large"
+                type="submit"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <CircularProgress size={24} color="inherit" />
+                ) : (
+                  "Subscribe"
+                )}
               </Button>
             </Box>
           </motion.div>
